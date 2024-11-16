@@ -4,3 +4,4 @@ opencv-python-headless
 numpy
 Pillow
 streamlit-drawable-canvas
+ultralytics==8.1.42
