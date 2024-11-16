@@ -58,6 +58,7 @@ canvas_result = st_canvas(
     drawing_mode="freedraw",  # Set to freehand drawing mode
     key="canvas",
 )
+
 # Initialize person_roi to avoid "name not defined" errors
 person_roi = []
 
@@ -85,7 +86,6 @@ if st.sidebar.button("Submit ROI"):
     else:
         st.sidebar.write("No data captured from the canvas.")
 
-
 # Read labels file
 with open('coco2.txt', "r") as my_file:
     data = my_file.read()
@@ -94,67 +94,64 @@ class_list = data.split("\n")
 # Stream video feed
 stframe = st.empty()
 
-while cap.isOpened():
-    ret, frame = cap.read()
-    if not ret:
-        st.write("Failed to read frame.")
-        break
-    
-    trans = np.zeros_like(frame, np.uint8)
+# Add Start/Stop Video Button to control the loop
+start_video = st.sidebar.button("Start Video")
 
-    # Set the model confidence threshold
-    model.conf = confidence_threshold
+if start_video:
+    cap = cv2.VideoCapture(video_source)
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            st.write("Failed to read frame.")
+            break
 
-    # Draw the ROI rectangle on the frame
-    if person_roi:
-        roi_array = np.array(person_roi, dtype=np.int32)
-        #cv2.polylines(frame, [roi_array], isClosed=True, color=(0, 255, 0), thickness=2)
-        cv2.fillPoly(trans, pts=[roi_array], color=(255, 255, 0))
+        trans = np.zeros_like(frame, np.uint8)
 
-    # Process the frame
-    results = model(frame)
-    person_detected_in_roi = False
+        # Set the model confidence threshold
+        model.conf = confidence_threshold
 
-    
+        # Draw the ROI rectangle on the frame
+        if person_roi:
+            roi_array = np.array(person_roi, dtype=np.int32)
+            # cv2.polylines(frame, [roi_array], isClosed=True, color=(0, 255, 0), thickness=2)
+            cv2.fillPoly(trans, pts=[roi_array], color=(255, 255, 0))
 
-    # Ensure person_roi is valid
-    if person_roi:
-        roi_array = np.array(person_roi, dtype=np.int32)
-    else:
-        roi_array = None
+        # Process the frame
+        results = model(frame)
+        person_detected_in_roi = False
 
-    for index, row in results.pandas().xyxy[0].iterrows():
-        cl = row['class']
-        xx1, xx2, yy1, yy2 = int(row['xmin']), int(row['xmax']), int(row['ymin']), int(row['ymax'])
-        c = class_list[int(cl)] if int(cl) < len(class_list) else "unknown"
+        # Ensure person_roi is valid
+        if person_roi:
+            roi_array = np.array(person_roi, dtype=np.int32)
+        else:
+            roi_array = None
 
+        for index, row in results.pandas().xyxy[0].iterrows():
+            cl = row['class']
+            xx1, xx2, yy1, yy2 = int(row['xmin']), int(row['xmax']), int(row['ymin']), int(row['ymax'])
+            c = class_list[int(cl)] if int(cl) < len(class_list) else "unknown"
 
-        if c == 'person' and roi_array is not None:
-            # Calculate midpoint for the detected bounding box
-            person_midpoint = ((xx1 + xx2) // 2, (yy1 + yy2) // 2)
-            inside_person_roi = cv2.pointPolygonTest(roi_array, (xx2, yy2), False)
+            if c == 'person' and roi_array is not None:
+                # Calculate midpoint for the detected bounding box
+                person_midpoint = ((xx1 + xx2) // 2, (yy1 + yy2) // 2)
+                inside_person_roi = cv2.pointPolygonTest(roi_array, (xx2, yy2), False)
 
+                if inside_person_roi > 0:
+                    person_detected_in_roi = True
+                    cv2.rectangle(trans, (xx1, yy1), (xx2, yy2), (0, 0, 255), -1)
+                    cv2.rectangle(frame, (xx1, yy1), (xx2, yy2), (255, 255, 255), 2)
+                    cv2.putText(frame, 'Person detected', (10, 30), 0, 1, (0, 0, 255), 2)
+                    cv2.putText(frame, 'Suspend lift operations!!!!', (10, 70), 0, 1, (0, 0, 255), 2)
 
-            if inside_person_roi > 0:
-                person_detected_in_roi = True
-                cv2.rectangle(trans, (xx1, yy1), (xx2, yy2), (0, 0, 255), -1)
-                cv2.rectangle(frame, (xx1, yy1), (xx2, yy2), (255, 255, 255), 2)
-                cv2.putText(frame, 'Person detected', (10, 30), 0, 1, (0, 0, 255), 2)
-                cv2.putText(frame, 'Suspend lift operations!!!!', (10, 70), 0, 1, (0, 0, 255), 2)
+        # Combine the transparent frame with the main frame
+        output_frame = frame.copy()
+        alpha = 0.5
+        mask = trans.astype(bool)
+        output_frame[mask] = cv2.addWeighted(frame, alpha, trans, 1 - alpha, 0)[mask]
 
-    # Combine the transparent frame with the main frame
-    output_frame = frame.copy()
-    alpha = 0.5
-    mask = trans.astype(bool)
-    output_frame[mask] = cv2.addWeighted(frame, alpha, trans, 1 - alpha, 0)[mask]
+        # Display the frame
+        stframe.image(output_frame, channels="BGR")
 
-    # Display the frame
-    stframe.image(output_frame, channels="BGR")
+    # Release resources
+    cap.release()
 
-    # Break the loop if the user presses 'q'
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-# Release resources
-cap.release()
-cv2.destroyAllWindows()
