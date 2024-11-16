@@ -9,7 +9,7 @@ from PIL import Image
 @st.cache_resource
 def load_model(model_path):
     return torch.hub.load(
-        "C:/Users/user/Desktop/calviltech/yolov8-opencv-win11-main/conveyor-belt-main/conveyor-belt-main/jetson/yolov5_model/yolov5-master/yolov5-master",
+        "yolov5-master/yolov5-master",
         "custom",
         model_path,
         source="local"
@@ -25,7 +25,7 @@ confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.6)
 video_source = st.sidebar.text_input("Enter Video Feed URL or Path", 'test-video-trim.mp4')
 
 # Load the YOLOv5 model only once (cached)
-path = "C:/Users/user/Desktop/calviltech/yolov8-opencv-win11-main/conveyor-belt-main/conveyor-belt-main/jetson/yolov5_model/yolov5-master/yolov5-master/yolov5n.pt"
+path = "yolov5-master/yolov5-master/yolov5n.pt"
 model = load_model(path)
 model.conf = confidence_threshold  # Set confidence threshold
 
