@@ -29,74 +29,74 @@ path = "yolov5-master/yolov5-master/yolov5n.pt"
 model = load_model(path)
 model.conf = confidence_threshold  # Set confidence threshold
 
-# Open the video capture
-cap = cv2.VideoCapture(video_source)
-
-# Read a sample frame to set as the canvas background
-ret, sample_frame = cap.read()
-if not ret:
-    st.error("Failed to read the video. Check your video source.")
-else:
-    sample_frame_pil = Image.fromarray(cv2.cvtColor(sample_frame, cv2.COLOR_BGR2RGB))
-
-# Sidebar canvas for drawing ROI
-st.sidebar.write("Draw Collision Area (ROI)")
-
-# Initialize person_roi to avoid "name not defined" errors
-person_roi = []
-
-# Initialize the canvas with the first frame
-canvas_result = st_canvas(
-    fill_color="rgba(255, 255, 0, 0.3)",
-    stroke_width=8,
-    stroke_color="yellow",
-    background_color="rgba(0, 0, 0, 0)",
-    background_image=sample_frame_pil if ret else None,
-    update_streamlit=True,
-    height=sample_frame.shape[0] if ret else 480,
-    width=sample_frame.shape[1] if ret else 640,
-    drawing_mode="freedraw",  # Set to freehand drawing mode
-    key="canvas",
-)
-
-# When the user clicks Submit, process the ROI
-if st.sidebar.button("Submit ROI"):
-    # Extract points from the canvas JSON data for the freehand drawing
-    if canvas_result.json_data:
-        if 'objects' in canvas_result.json_data:
-            person_roi = []
-            for obj in canvas_result.json_data["objects"]:
-                # Ensure the object type is "path"
-                if obj["type"] == "path":
-                    # Loop through each point in the path
-                    for point in obj["path"]:
-                        # Ensure the point is in the format [<command>, x, y]
-                        if len(point) == 3 and isinstance(point[1], (int, float)) and isinstance(point[2], (int, float)):
-                            x, y = point[1], point[2]
-                            person_roi.append((x, y))
-            
-            if person_roi:
-                st.sidebar.write("Freehand ROI submitted:", person_roi)
-            else:
-                st.sidebar.write("No valid points extracted from the freehand ROI.")
-        else:
-            st.sidebar.write("No objects found in the canvas JSON data.")
-    else:
-        st.sidebar.write("No data captured from the canvas.")
-
 # Read labels file
 with open('coco2.txt', "r") as my_file:
     data = my_file.read()
 class_list = data.split("\n")
 
+# Initialize the person ROI to avoid "name not defined" errors
+person_roi = []
+
 # Stream video feed
 stframe = st.empty()
 
-# Add Start/Stop Video Button to control the loop
+# Start/Stop Video Button to control the loop
 start_video = st.sidebar.button("Start Video")
 
 if start_video:
+    # Open the video capture
     cap = cv2.VideoCapture(video_source)
+
+    # Read the first frame to set the canvas background
+    ret, sample_frame = cap.read()
+    if not ret:
+        st.error("Failed to read the video. Check your video source.")
+    else:
+        sample_frame_pil = Image.fromarray(cv2.cvtColor(sample_frame, cv2.COLOR_BGR2RGB))
+
+    # Sidebar canvas for drawing ROI
+    st.sidebar.write("Draw Collision Area (ROI)")
+
+    # Initialize the canvas with the first frame
+    canvas_result = st_canvas(
+        fill_color="rgba(255, 255, 0, 0.3)",
+        stroke_width=8,
+        stroke_color="yellow",
+        background_color="rgba(0, 0, 0, 0)",
+        background_image=sample_frame_pil if ret else None,
+        update_streamlit=True,
+        height=sample_frame.shape[0] if ret else 480,
+        width=sample_frame.shape[1] if ret else 640,
+        drawing_mode="freedraw",  # Set to freehand drawing mode
+        key="canvas",
+    )
+
+    # When the user clicks Submit, process the ROI
+    if st.sidebar.button("Submit ROI"):
+        # Extract points from the canvas JSON data for the freehand drawing
+        if canvas_result.json_data:
+            if 'objects' in canvas_result.json_data:
+                person_roi = []
+                for obj in canvas_result.json_data["objects"]:
+                    # Ensure the object type is "path"
+                    if obj["type"] == "path":
+                        # Loop through each point in the path
+                        for point in obj["path"]:
+                            # Ensure the point is in the format [<command>, x, y]
+                            if len(point) == 3 and isinstance(point[1], (int, float)) and isinstance(point[2], (int, float)):
+                                x, y = point[1], point[2]
+                                person_roi.append((x, y))
+
+                if person_roi:
+                    st.sidebar.write("Freehand ROI submitted:", person_roi)
+                else:
+                    st.sidebar.write("No valid points extracted from the freehand ROI.")
+            else:
+                st.sidebar.write("No objects found in the canvas JSON data.")
+        else:
+            st.sidebar.write("No data captured from the canvas.")
+
+    # Start processing the video stream
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
