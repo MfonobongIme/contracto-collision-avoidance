@@ -36,16 +36,16 @@ cap = cv2.VideoCapture(video_source)
 ret, sample_frame = cap.read()
 if not ret:
     st.error("Failed to read the video. Check your video source.")
-    cap.release()
 else:
     sample_frame_pil = Image.fromarray(cv2.cvtColor(sample_frame, cv2.COLOR_BGR2RGB))
-    cap.release()
-    cap = cv2.VideoCapture(video_source)
 
 # Sidebar canvas for drawing ROI
 st.sidebar.write("Draw Collision Area (ROI)")
 
-# Initialize the canvas for freehand drawing mode
+# Initialize person_roi to avoid "name not defined" errors
+person_roi = []
+
+# Initialize the canvas with the first frame
 canvas_result = st_canvas(
     fill_color="rgba(255, 255, 0, 0.3)",
     stroke_width=8,
@@ -59,9 +59,7 @@ canvas_result = st_canvas(
     key="canvas",
 )
 
-# Initialize person_roi to avoid "name not defined" errors
-person_roi = []
-
+# When the user clicks Submit, process the ROI
 if st.sidebar.button("Submit ROI"):
     # Extract points from the canvas JSON data for the freehand drawing
     if canvas_result.json_data:
@@ -154,4 +152,3 @@ if start_video:
 
     # Release resources
     cap.release()
-
