@@ -40,10 +40,17 @@ person_roi = []
 # Stream video feed
 stframe = st.empty()
 
+# Check if the video has started before
+if "video_started" not in st.session_state:
+    st.session_state.video_started = False
+
 # Start/Stop Video Button to control the loop
 start_video = st.sidebar.button("Start Video")
 
-if start_video:
+if start_video and not st.session_state.video_started:
+    # Mark the video as started
+    st.session_state.video_started = True
+
     # Open the video capture
     cap = cv2.VideoCapture(video_source)
 
@@ -152,3 +159,6 @@ if start_video:
 
     # Release resources
     cap.release()
+
+else:
+    st.sidebar.write("Click the 'Start Video' button to begin.")
